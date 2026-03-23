@@ -1,0 +1,12 @@
+com\replay\model\ComparisonResult$Discrepancy.class
+com\replay\model\ReplayFile.class
+com\replay\model\ReplayRecord.class
+com\replay\model\ComparisonResult$ValidationError.class
+com\replay\model\ComparisonRules.class
+com\replay\service\ComparisonService.class
+com\replay\controller\ReplayController.class
+com\replay\model\ComparisonResult.class
+com\replay\ReplayAnalyzerApplication.class
+com\replay\service\YamlParserService.class
+com\replay\ReplayAnalyzerApplication$1.class
+com\replay\service\ValidationService.class
