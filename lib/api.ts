@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api'
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export interface ComparisonRules {
   checkMissingFields: boolean
@@ -73,9 +73,12 @@ export async function compareFiles(
 
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/replay/health`)
-    return response.ok
+    // Note: The controller has @RequestMapping("/replay")
+    const response = await fetch(`${API_BASE_URL}/replay/health`); //
+    return response.ok;
   } catch {
-    return false
+    return false;
   }
 }
+
+

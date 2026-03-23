@@ -3,96 +3,78 @@ package com.replay.service;
 import com.replay.model.ReplayFile;
 import com.replay.model.ReplayRecord;
 import java.util.*;
-import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
 @Service
 public class YamlParserService {
+    // Initialized in original source
     private final Yaml yaml = new Yaml();
 
+    /**
+     * Parses YAML content into a ReplayFile object.
+     * Handles both lists of records (starting with '-') and single root-level objects.
+     */
     public ReplayFile parseYamlContent(String content, String fileName) {
         ReplayFile replayFile = new ReplayFile(fileName);
 
+        if (content == null || content.trim().isEmpty()) {
+            return replayFile;
+        }
+
         try {
-            // Split by lines and attempt lenient parsing
-            String[] lines = content.split("\n");
-            ReplayRecord currentRecord = null;
-            int recordCounter = 0;
-
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i].trim();
-
-                // Skip empty lines and comments
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
+            // Use SnakeYAML to load the content into standard Java Collections
+            Object loadedYaml = yaml.load(content);
+            
+            if (loadedYaml instanceof List) {
+                // Case 1: YAML is a list of objects (standard replay format)
+                List<Map<String, Object>> recordsData = (List<Map<String, Object>>) loadedYaml;
+                int counter = 1;
+                for (Map<String, Object> recordMap : recordsData) {
+                    processRecord(replayFile, recordMap, counter++);
                 }
-
-                // Check if this is a new record (starts with - or is a key: value pair at root level)
-                if (line.startsWith("-")) {
-                    if (currentRecord != null) {
-                        replayFile.addRecord(currentRecord);
-                    }
-                    currentRecord = new ReplayRecord("record_" + (++recordCounter));
-                    line = line.substring(1).trim();
-                }
-
-                // Parse key-value pair
-                if (currentRecord != null && !line.isEmpty()) {
-                    parseKeyValuePair(line, currentRecord, i);
-                }
-            }
-
-            // Add the last record
-            if (currentRecord != null) {
-                replayFile.addRecord(currentRecord);
+            } else if (loadedYaml instanceof Map) {
+                // Case 2: YAML is a single root-level object
+                processRecord(replayFile, (Map<String, Object>) loadedYaml, 1);
             }
 
         } catch (Exception e) {
-            replayFile.addParsingError("Fatal parsing error: " + e.getMessage());
+            // Catch syntax errors and library-level parsing issues
+            replayFile.addParsingError("YAML Syntax Error: " + e.getMessage());
         }
 
         return replayFile;
     }
 
-    private void parseKeyValuePair(String line, ReplayRecord record, int lineNumber) {
-        try {
-            // Handle format: "key: value" or just "value" (missing key)
-            if (line.contains(":")) {
-                String[] parts = line.split(":", 2);
-                String key = parts[0].trim();
-                String value = parts.length > 1 ? parts[1].trim() : "";
-
-                // Clean up key (remove quotes)
-                key = cleanString(key);
-                value = cleanString(value);
-
-                if (!key.isEmpty()) {
-                    record.setField(key, value);
-                }
-            } else {
-                // Missing key, just value
-                String value = cleanString(line);
-                if (!value.isEmpty()) {
-                    record.addError("missing_key_line_" + lineNumber, "Line has value but no key: " + line);
-                }
-            }
-        } catch (Exception e) {
-            record.addError("parse_error_line_" + lineNumber, "Error parsing line: " + e.getMessage());
+    /**
+     * Converts a Map of data into a ReplayRecord and adds it to the file.
+     */
+    private void processRecord(ReplayFile replayFile, Map<String, Object> data, int index) {
+        // Use an ID field from the data if available, otherwise use a generated one
+        String recordId = "record_" + index;
+        if (data.containsKey("id")) {
+            recordId = data.get("id").toString();
+        } else if (data.containsKey("recordId")) {
+            recordId = data.get("recordId").toString();
         }
+
+        ReplayRecord record = new ReplayRecord(recordId);
+
+        // Populate fields from the Map
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            
+            // Convert values to strings for compatibility with the ComparisonService
+            record.setField(key, value != null ? value.toString() : "");
+        }
+
+        replayFile.addRecord(record);
     }
 
-    private String cleanString(String str) {
-        if (str == null) return "";
-        str = str.trim();
-        // Remove quotes
-        if ((str.startsWith("\"") && str.endsWith("\"")) || 
-            (str.startsWith("'") && str.endsWith("'"))) {
-            str = str.substring(1, str.length() - 1);
-        }
-        return str;
-    }
-
+    /**
+     * Extracts all unique field names across all records in a file.
+     */
     public List<String> extractFieldNames(ReplayFile file) {
         Set<String> fieldNames = new HashSet<>();
         for (ReplayRecord record : file.getRecords()) {

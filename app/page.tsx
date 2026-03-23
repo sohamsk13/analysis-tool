@@ -6,6 +6,7 @@ import { RuleManager } from '@/components/RuleManager'
 import { ResultsViewer } from '@/components/ResultsViewer'
 import { Button } from '@/components/ui/button'
 import { compareFiles, healthCheck } from '@/lib/api'
+import { ComparisonResult } from '../lib/api';
 
 export default function Home() {
   const [file1, setFile1] = useState<{ content: string; fileName: string } | null>(null)
@@ -18,7 +19,7 @@ export default function Home() {
     validateTrackerIdFormat: true,
     checkDecisionConsistency: true,
   })
-  const [result, setResult] = useState(null)
+  const [result, setResult] =  useState<ComparisonResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null)
